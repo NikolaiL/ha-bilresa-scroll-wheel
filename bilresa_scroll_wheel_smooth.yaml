@@ -1,295 +1,114 @@
 blueprint:
-  name: IKEA Bilresa Scroll Wheel — Smooth Dimmer / Color / Scene Selector
+  name: IKEA Bilresa Scroll Wheel — Smooth Dimmer / Color / Scene
   description: |
-    Control lights and scenes with the IKEA BILRESA scroll wheel (Matter), with a
-    per-channel MODE SELECTOR — use each wheel as a smooth **dimmer**, a **color**
+    Control a light (or light group) with one channel of the IKEA BILRESA scroll wheel
+    (Matter), with a MODE selector — use the wheel as a smooth **dimmer**, a **color**
     selector (color temperature or hue), or a **scene** selector.
 
+    ONE AUTOMATION = ONE CHANNEL controlling ONE light/group.
+    The wheel has 3 channels; create up to 3 automations from this blueprint.
+    Event-entity mapping (Matter):
+      • Channel 1 → scroll: ..._button_1 / ..._button_2   button: ..._button_3
+      • Channel 2 → scroll: ..._button_4 / ..._button_5   button: ..._button_6
+      • Channel 3 → scroll: ..._button_7 / ..._button_8   button: ..._button_9
+    Pick the two scroll entities for "up" and "down"; if the direction feels reversed,
+    just swap them.
+
     SMOOTH DIMMING
-    The scroll wheel emits discrete "notch" events, not a hold/release. To make
-    dimming feel continuous instead of stepped, each scroll event glides the light
-    to an absolute target brightness with a transition whose length is scaled to how
-    far you scrolled (Glide time per notch). Consecutive scrolls blend together, so
-    the bulb's own transition engine produces a smooth ramp rather than visible jumps.
-    The same absolute-target + transition technique is used for color temperature and hue.
+    The wheel emits discrete "notch" events (not a hold/release), so instead of stepping,
+    each scroll glides the light to an absolute target with a transition scaled to how far
+    you scrolled (Glide time per notch). Consecutive scrolls blend, so the bulb's own
+    transition engine produces a continuous ramp. Same technique for color temp and hue.
 
-    MODES (per channel)
-      - dim          : smooth brightness up/down
-      - color_temp   : smooth warmer/cooler (Kelvin)
-      - hue          : smooth hue rotation around the color wheel
-      - scene        : step through an input_select of scene entity_ids and activate it
-      - none         : scroll does nothing on this channel
-
-    BUTTONS
-    Each channel's button supports click / double-click / triple-click / hold custom actions.
-
-    EVALUATION
-    Uses "relaxed" evaluation — one glide per scroll gesture, read from the wheel's
-    totalNumberOfPressesCounted attribute. No hidden helper entities required.
-
-    Event entities can be selected manually per channel, or auto-detected from the
-    device (button/scroll-left/scroll-right by numeric suffix).
-
-    Credits: event model & structure inspired by aydinseven7/ha-blueprints
-    (bilresa-scroll-wheel) and Kaito-Mez/HA-Blueprints (Bilresa Dual Button).
+    Credits: event model from aydinseven7/ha-blueprints (bilresa-scroll-wheel);
+    smooth-ramp idea from Kaito-Mez/HA-Blueprints (Bilresa Dual Button).
   source_url: https://github.com/NikolaiL/ha-bilresa-scroll-wheel/blob/main/bilresa_scroll_wheel_smooth.yaml
   domain: automation
   input:
-    remote:
-      name: Remote
-      description: IKEA BILRESA scroll wheel device (used for auto-detecting event entities).
+    target_light:
+      name: Light(s) / light group to control
+      description: The light or light-group entity this channel controls (dim / color modes).
       selector:
-        device:
-          filter:
-            manufacturer: IKEA of Sweden
-            model: BILRESA scroll wheel
+        entity:
+          domain: light
+          multiple: true
 
-    # ---------------- Channel 1 ----------------
-    channel1_entities:
-      name: Channel 1 — Event entities (optional overrides)
-      description: Leave empty to auto-detect from the device (button=_3, scroll-left=_2, scroll-right=_1).
+    controls:
+      name: Scroll wheel channel entities
+      description: Select the two scroll entities and the push-button for the channel you want to use.
+      input:
+        scroll_up_entity:
+          name: "Scroll UP / clockwise event entity (e.g. ..._button_1)"
+          selector:
+            entity:
+              domain: event
+        scroll_down_entity:
+          name: "Scroll DOWN / counter-clockwise event entity (e.g. ..._button_2)"
+          selector:
+            entity:
+              domain: event
+        button_entity:
+          name: "Push-button event entity (e.g. ..._button_3)"
+          selector:
+            entity:
+              domain: event
+
+    scroll_mode:
+      name: Scroll mode
+      default: dim
+      selector:
+        select:
+          options:
+            - label: "Dimmer (smooth)"
+              value: dim
+            - label: "Color temperature (smooth)"
+              value: color_temp
+            - label: "Color / hue (smooth)"
+              value: hue
+            - label: "Scene selector"
+              value: scene
+
+    scene_select:
+      name: "Scene input_select (scene mode only)"
+      description: >
+        For scene mode: an input_select helper whose options are scene entity_ids
+        (e.g. scene.movie). Scrolling steps through it and activates the selection.
+      default: ""
+      selector:
+        entity:
+          domain: input_select
+
+    button_actions:
+      name: Button actions (optional)
       collapsed: true
       input:
-        button_ch1_entity:
-          name: "Channel 1: Button event entity"
-          default: ""
-          selector:
-            entity:
-              domain: event
-        scroll_left_ch1_entity:
-          name: "Channel 1: Scroll-left event entity"
-          default: ""
-          selector:
-            entity:
-              domain: event
-        scroll_right_ch1_entity:
-          name: "Channel 1: Scroll-right event entity"
-          default: ""
-          selector:
-            entity:
-              domain: event
-    channel1_section:
-      name: Channel 1
-      collapsed: true
-      input:
-        mode_ch1:
-          name: "Channel 1: Scroll mode"
-          default: dim
-          selector:
-            select:
-              options:
-                - label: "Dimmer (smooth)"
-                  value: dim
-                - label: "Color temperature (smooth)"
-                  value: color_temp
-                - label: "Color / hue (smooth)"
-                  value: hue
-                - label: "Scene selector"
-                  value: scene
-                - label: "None"
-                  value: none
-        target_ch1:
-          name: "Channel 1: Target light(s)"
-          description: Light(s) controlled in dim / color_temp / hue modes.
-          default: []
-          selector:
-            entity:
-              domain: light
-              multiple: true
-        scene_select_ch1:
-          name: "Channel 1: Scene input_select"
-          description: >
-            For scene mode only. An input_select helper whose options are scene
-            entity_ids (e.g. scene.movie). Scroll steps through it and activates the selection.
-          default: ""
-          selector:
-            entity:
-              domain: input_select
-        click_action_ch1:
-          name: "Channel 1: Button click action"
+        click_action:
+          name: Button click action
           default: []
           selector:
             action: {}
-        double_click_action_ch1:
-          name: "Channel 1: Button double-click action"
+        double_click_action:
+          name: Button double-click action
           default: []
           selector:
             action: {}
-        triple_click_action_ch1:
-          name: "Channel 1: Button triple-click action"
+        triple_click_action:
+          name: Button triple-click action
           default: []
           selector:
             action: {}
-        hold_action_ch1:
-          name: "Channel 1: Button hold action"
+        hold_action:
+          name: Button hold action
           default: []
           selector:
             action: {}
 
-    # ---------------- Channel 2 ----------------
-    channel2_entities:
-      name: Channel 2 — Event entities (optional overrides)
-      description: Leave empty to auto-detect from the device (button=_6, scroll-left=_5, scroll-right=_4).
-      collapsed: true
-      input:
-        button_ch2_entity:
-          name: "Channel 2: Button event entity"
-          default: ""
-          selector:
-            entity:
-              domain: event
-        scroll_left_ch2_entity:
-          name: "Channel 2: Scroll-left event entity"
-          default: ""
-          selector:
-            entity:
-              domain: event
-        scroll_right_ch2_entity:
-          name: "Channel 2: Scroll-right event entity"
-          default: ""
-          selector:
-            entity:
-              domain: event
-    channel2_section:
-      name: Channel 2
-      collapsed: true
-      input:
-        mode_ch2:
-          name: "Channel 2: Scroll mode"
-          default: none
-          selector:
-            select:
-              options:
-                - label: "Dimmer (smooth)"
-                  value: dim
-                - label: "Color temperature (smooth)"
-                  value: color_temp
-                - label: "Color / hue (smooth)"
-                  value: hue
-                - label: "Scene selector"
-                  value: scene
-                - label: "None"
-                  value: none
-        target_ch2:
-          name: "Channel 2: Target light(s)"
-          default: []
-          selector:
-            entity:
-              domain: light
-              multiple: true
-        scene_select_ch2:
-          name: "Channel 2: Scene input_select"
-          default: ""
-          selector:
-            entity:
-              domain: input_select
-        click_action_ch2:
-          name: "Channel 2: Button click action"
-          default: []
-          selector:
-            action: {}
-        double_click_action_ch2:
-          name: "Channel 2: Button double-click action"
-          default: []
-          selector:
-            action: {}
-        triple_click_action_ch2:
-          name: "Channel 2: Button triple-click action"
-          default: []
-          selector:
-            action: {}
-        hold_action_ch2:
-          name: "Channel 2: Button hold action"
-          default: []
-          selector:
-            action: {}
-
-    # ---------------- Channel 3 ----------------
-    channel3_entities:
-      name: Channel 3 — Event entities (optional overrides)
-      description: Leave empty to auto-detect from the device (button=_9, scroll-left=_8, scroll-right=_7).
-      collapsed: true
-      input:
-        button_ch3_entity:
-          name: "Channel 3: Button event entity"
-          default: ""
-          selector:
-            entity:
-              domain: event
-        scroll_left_ch3_entity:
-          name: "Channel 3: Scroll-left event entity"
-          default: ""
-          selector:
-            entity:
-              domain: event
-        scroll_right_ch3_entity:
-          name: "Channel 3: Scroll-right event entity"
-          default: ""
-          selector:
-            entity:
-              domain: event
-    channel3_section:
-      name: Channel 3
-      collapsed: true
-      input:
-        mode_ch3:
-          name: "Channel 3: Scroll mode"
-          default: none
-          selector:
-            select:
-              options:
-                - label: "Dimmer (smooth)"
-                  value: dim
-                - label: "Color temperature (smooth)"
-                  value: color_temp
-                - label: "Color / hue (smooth)"
-                  value: hue
-                - label: "Scene selector"
-                  value: scene
-                - label: "None"
-                  value: none
-        target_ch3:
-          name: "Channel 3: Target light(s)"
-          default: []
-          selector:
-            entity:
-              domain: light
-              multiple: true
-        scene_select_ch3:
-          name: "Channel 3: Scene input_select"
-          default: ""
-          selector:
-            entity:
-              domain: input_select
-        click_action_ch3:
-          name: "Channel 3: Button click action"
-          default: []
-          selector:
-            action: {}
-        double_click_action_ch3:
-          name: "Channel 3: Button double-click action"
-          default: []
-          selector:
-            action: {}
-        triple_click_action_ch3:
-          name: "Channel 3: Button triple-click action"
-          default: []
-          selector:
-            action: {}
-        hold_action_ch3:
-          name: "Channel 3: Button hold action"
-          default: []
-          selector:
-            action: {}
-
-    # ---------------- Global: dimming ----------------
     dim_settings:
       name: Dimmer settings (smooth)
       collapsed: true
       input:
         dim_step_pct:
           name: Brightness step per notch (%)
-          description: How much brightness one scroll notch adds/removes.
           default: 6
           selector:
             number: { min: 1, max: 50, step: 1, unit_of_measurement: "%", mode: slider }
@@ -301,20 +120,16 @@ blueprint:
             number: { min: 1, max: 50, step: 1, unit_of_measurement: "%", mode: slider }
         notch_glide:
           name: Glide time per notch (s)
-          description: >
-            The smoothness knob. Longer = smoother/slower glide; consecutive scrolls
-            blend together. Shorter = snappier.
+          description: The smoothness knob. Longer = smoother/slower; consecutive scrolls blend.
           default: 0.4
           selector:
             number: { min: 0, max: 1.5, step: 0.05, unit_of_measurement: s, mode: slider }
         max_glide:
           name: Maximum glide time (s)
-          description: Caps the total transition for a fast multi-notch scroll.
           default: 2.5
           selector:
             number: { min: 0.2, max: 6, step: 0.1, unit_of_measurement: s, mode: slider }
 
-    # ---------------- Global: color ----------------
     color_settings:
       name: Color settings (smooth)
       collapsed: true
@@ -345,7 +160,6 @@ blueprint:
           selector:
             number: { min: 0, max: 100, step: 1, unit_of_measurement: "%", mode: slider }
 
-    # ---------------- Global: misc ----------------
     misc_settings:
       name: Miscellaneous
       collapsed: true
@@ -368,70 +182,9 @@ max: !input max_queued
 max_exceeded: silent
 
 variables:
-  var_remote: !input remote
-
-  # manual overrides
-  button_ch1_input: !input button_ch1_entity
-  scroll_left_ch1_input: !input scroll_left_ch1_entity
-  scroll_right_ch1_input: !input scroll_right_ch1_entity
-  button_ch2_input: !input button_ch2_entity
-  scroll_left_ch2_input: !input scroll_left_ch2_entity
-  scroll_right_ch2_input: !input scroll_right_ch2_entity
-  button_ch3_input: !input button_ch3_entity
-  scroll_left_ch3_input: !input scroll_left_ch3_entity
-  scroll_right_ch3_input: !input scroll_right_ch3_entity
-
-  # resolve entity for each role: manual override, else auto-detect by numeric suffix
-  var_button_ch1: >-
-    {%- if button_ch1_input -%}{{ button_ch1_input }}
-    {%- else -%}{%- set ns = namespace(f='') -%}
-    {%- for e in device_entities(var_remote) if e.startswith('event.') and e.endswith('_3') -%}{%- set ns.f = e -%}{%- endfor -%}{{ ns.f }}{%- endif -%}
-  var_scroll_left_ch1: >-
-    {%- if scroll_left_ch1_input -%}{{ scroll_left_ch1_input }}
-    {%- else -%}{%- set ns = namespace(f='') -%}
-    {%- for e in device_entities(var_remote) if e.startswith('event.') and e.endswith('_2') -%}{%- set ns.f = e -%}{%- endfor -%}{{ ns.f }}{%- endif -%}
-  var_scroll_right_ch1: >-
-    {%- if scroll_right_ch1_input -%}{{ scroll_right_ch1_input }}
-    {%- else -%}{%- set ns = namespace(f='') -%}
-    {%- for e in device_entities(var_remote) if e.startswith('event.') and e.endswith('_1') -%}{%- set ns.f = e -%}{%- endfor -%}{{ ns.f }}{%- endif -%}
-  var_button_ch2: >-
-    {%- if button_ch2_input -%}{{ button_ch2_input }}
-    {%- else -%}{%- set ns = namespace(f='') -%}
-    {%- for e in device_entities(var_remote) if e.startswith('event.') and e.endswith('_6') -%}{%- set ns.f = e -%}{%- endfor -%}{{ ns.f }}{%- endif -%}
-  var_scroll_left_ch2: >-
-    {%- if scroll_left_ch2_input -%}{{ scroll_left_ch2_input }}
-    {%- else -%}{%- set ns = namespace(f='') -%}
-    {%- for e in device_entities(var_remote) if e.startswith('event.') and e.endswith('_5') -%}{%- set ns.f = e -%}{%- endfor -%}{{ ns.f }}{%- endif -%}
-  var_scroll_right_ch2: >-
-    {%- if scroll_right_ch2_input -%}{{ scroll_right_ch2_input }}
-    {%- else -%}{%- set ns = namespace(f='') -%}
-    {%- for e in device_entities(var_remote) if e.startswith('event.') and e.endswith('_4') -%}{%- set ns.f = e -%}{%- endfor -%}{{ ns.f }}{%- endif -%}
-  var_button_ch3: >-
-    {%- if button_ch3_input -%}{{ button_ch3_input }}
-    {%- else -%}{%- set ns = namespace(f='') -%}
-    {%- for e in device_entities(var_remote) if e.startswith('event.') and e.endswith('_9') -%}{%- set ns.f = e -%}{%- endfor -%}{{ ns.f }}{%- endif -%}
-  var_scroll_left_ch3: >-
-    {%- if scroll_left_ch3_input -%}{{ scroll_left_ch3_input }}
-    {%- else -%}{%- set ns = namespace(f='') -%}
-    {%- for e in device_entities(var_remote) if e.startswith('event.') and e.endswith('_8') -%}{%- set ns.f = e -%}{%- endfor -%}{{ ns.f }}{%- endif -%}
-  var_scroll_right_ch3: >-
-    {%- if scroll_right_ch3_input -%}{{ scroll_right_ch3_input }}
-    {%- else -%}{%- set ns = namespace(f='') -%}
-    {%- for e in device_entities(var_remote) if e.startswith('event.') and e.endswith('_7') -%}{%- set ns.f = e -%}{%- endfor -%}{{ ns.f }}{%- endif -%}
-
-  # per-channel config maps
-  cfg:
-    mode_ch1: !input mode_ch1
-    mode_ch2: !input mode_ch2
-    mode_ch3: !input mode_ch3
-    target_ch1: !input target_ch1
-    target_ch2: !input target_ch2
-    target_ch3: !input target_ch3
-    scene_ch1: !input scene_select_ch1
-    scene_ch2: !input scene_select_ch2
-    scene_ch3: !input scene_select_ch3
-
-  # global settings
+  target_light: !input target_light
+  mode: !input scroll_mode
+  scene_helper: !input scene_select
   var_dim_step_pct: !input dim_step_pct
   var_dim_min_pct: !input dim_min_pct
   var_notch_glide: !input notch_glide
@@ -445,110 +198,42 @@ variables:
 
 triggers:
   - trigger: state
-    entity_id: !input button_ch1_entity
+    entity_id: !input scroll_up_entity
     not_from: unavailable
     not_to: unavailable
-    id: button_ch1
+    id: scroll_up
   - trigger: state
-    entity_id: !input scroll_left_ch1_entity
+    entity_id: !input scroll_down_entity
     not_from: unavailable
     not_to: unavailable
-    id: scroll_left_ch1
+    id: scroll_down
   - trigger: state
-    entity_id: !input scroll_right_ch1_entity
+    entity_id: !input button_entity
     not_from: unavailable
     not_to: unavailable
-    id: scroll_right_ch1
-  - trigger: state
-    entity_id: !input button_ch2_entity
-    not_from: unavailable
-    not_to: unavailable
-    id: button_ch2
-  - trigger: state
-    entity_id: !input scroll_left_ch2_entity
-    not_from: unavailable
-    not_to: unavailable
-    id: scroll_left_ch2
-  - trigger: state
-    entity_id: !input scroll_right_ch2_entity
-    not_from: unavailable
-    not_to: unavailable
-    id: scroll_right_ch2
-  - trigger: state
-    entity_id: !input button_ch3_entity
-    not_from: unavailable
-    not_to: unavailable
-    id: button_ch3
-  - trigger: state
-    entity_id: !input scroll_left_ch3_entity
-    not_from: unavailable
-    not_to: unavailable
-    id: scroll_left_ch3
-  - trigger: state
-    entity_id: !input scroll_right_ch3_entity
-    not_from: unavailable
-    not_to: unavailable
-    id: scroll_right_ch3
+    id: button
 
 conditions: []
 
 actions:
   - variables:
-      channel: >-
-        {%- set t = trigger.id -%}
-        {%- if t in ['button_ch1','scroll_left_ch1','scroll_right_ch1'] -%}ch1
-        {%- elif t in ['button_ch2','scroll_left_ch2','scroll_right_ch2'] -%}ch2
-        {%- else -%}ch3{%- endif -%}
-      is_scroll: "{{ trigger.id.startswith('scroll_') }}"
-      direction: "{{ 'right' if 'scroll_right' in trigger.id else ('left' if 'scroll_left' in trigger.id else '') }}"
+      is_scroll: "{{ trigger.id in ['scroll_up','scroll_down'] }}"
+      direction: "{{ 'up' if trigger.id == 'scroll_up' else ('down' if trigger.id == 'scroll_down' else '') }}"
+      dir_sign: "{{ 1 if trigger.id == 'scroll_up' else -1 }}"
       clicks: "{{ trigger.to_state.attributes.totalNumberOfPressesCounted | int(1) if is_scroll else 0 }}"
       ev: "{{ trigger.to_state.attributes.event_type if not is_scroll else '' }}"
-      mode: "{{ cfg['mode_' ~ channel] }}"
-      targets: "{{ cfg['target_' ~ channel] }}"
-      scene_helper: "{{ cfg['scene_' ~ channel] }}"
       glide: "{{ [ (clicks | int) * var_notch_glide, var_max_glide ] | min }}"
-      dir_sign: "{{ 1 if direction == 'right' else -1 }}"
 
   - choose:
-      # ---------- Button: click ----------
+      # ---------- Button ----------
       - conditions: "{{ not is_scroll and ev == 'multi_press_1' }}"
-        sequence:
-          - if: "{{ channel == 'ch1' }}"
-            then: !input click_action_ch1
-          - if: "{{ channel == 'ch2' }}"
-            then: !input click_action_ch2
-          - if: "{{ channel == 'ch3' }}"
-            then: !input click_action_ch3
-
-      # ---------- Button: double-click ----------
+        sequence: !input click_action
       - conditions: "{{ not is_scroll and ev == 'multi_press_2' }}"
-        sequence:
-          - if: "{{ channel == 'ch1' }}"
-            then: !input double_click_action_ch1
-          - if: "{{ channel == 'ch2' }}"
-            then: !input double_click_action_ch2
-          - if: "{{ channel == 'ch3' }}"
-            then: !input double_click_action_ch3
-
-      # ---------- Button: triple-click ----------
+        sequence: !input double_click_action
       - conditions: "{{ not is_scroll and ev == 'multi_press_3' }}"
-        sequence:
-          - if: "{{ channel == 'ch1' }}"
-            then: !input triple_click_action_ch1
-          - if: "{{ channel == 'ch2' }}"
-            then: !input triple_click_action_ch2
-          - if: "{{ channel == 'ch3' }}"
-            then: !input triple_click_action_ch3
-
-      # ---------- Button: hold ----------
+        sequence: !input triple_click_action
       - conditions: "{{ not is_scroll and ev == 'long_press' }}"
-        sequence:
-          - if: "{{ channel == 'ch1' }}"
-            then: !input hold_action_ch1
-          - if: "{{ channel == 'ch2' }}"
-            then: !input hold_action_ch2
-          - if: "{{ channel == 'ch3' }}"
-            then: !input hold_action_ch3
+        sequence: !input hold_action
 
       # ---------- Scroll: scene selector ----------
       - conditions: "{{ is_scroll and mode == 'scene' and scene_helper }}"
@@ -556,7 +241,7 @@ actions:
           - repeat:
               count: "{{ clicks | int }}"
               sequence:
-                - action: "{{ 'input_select.select_next' if direction == 'right' else 'input_select.select_previous' }}"
+                - action: "{{ 'input_select.select_next' if direction == 'up' else 'input_select.select_previous' }}"
                   target:
                     entity_id: "{{ scene_helper }}"
                   data:
@@ -567,11 +252,11 @@ actions:
             data:
               transition: "{{ var_scene_transition }}"
 
-      # ---------- Scroll: light modes (dim / color_temp / hue) ----------
-      - conditions: "{{ is_scroll and mode in ['dim','color_temp','hue'] and targets | count > 0 }}"
+      # ---------- Scroll: light modes ----------
+      - conditions: "{{ is_scroll and mode in ['dim','color_temp','hue'] and target_light | count > 0 }}"
         sequence:
           - repeat:
-              for_each: "{{ targets }}"
+              for_each: "{{ target_light }}"
               sequence:
                 - choose:
                     # ----- smooth dim -----
@@ -592,7 +277,7 @@ actions:
                                 brightness: "{{ target | int }}"
                                 transition: "{{ glide }}"
                           else:
-                            - if: "{{ direction == 'right' }}"
+                            - if: "{{ direction == 'up' }}"
                               then:
                                 - action: light.turn_on
                                   target:
